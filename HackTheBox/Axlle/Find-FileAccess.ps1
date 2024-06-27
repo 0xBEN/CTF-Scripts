@@ -67,6 +67,7 @@ begin {
 process {
     $gciParameters = @{
         Path = $SearchPath
+        Recurse = $true
         ErrorAction = 'SilentlyContinue'
     }
     if ($HiddenItems) { $gciParameters.Add('Hidden', $true) }
