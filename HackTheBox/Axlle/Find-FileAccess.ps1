@@ -50,7 +50,14 @@ begin {
     $interestingPermissions = @()
 }
 process {
-    $acls = Get-ChildItem $SearchPath -ErrorAction SilentlyContinue | Get-Acl
+    $acls = Get-ChildItem $SearchPath -ErrorAction SilentlyContinue | ForEach-Object {
+        try {
+            Get-Acl $_.FullName
+        }
+        catch {
+            # Silently ignore errors
+        }
+    }
     $interestingAcls = $acls | Where-Object {$_.Access.FileSystemRights -in $interestingAccess}
 }
 end {
