@@ -25,20 +25,20 @@
 
     .EXAMPLE
     ...
-    ┌──(ben㉿kali-ct)-[~]
-    └─$ sudo impacket-smbserver -smb2support -username smb -password smb myshare .
+    sudo impacket-smbserver -smb2support -username smb -password smb myshare .
 
     PS> New-SmbMapping -LocalPath Z: -RemotePath \\kali-ip-address\myshare -UserName smb -Password smb
 
-    PS> Start-Job -FilePath Z:\Find-FileAccess.ps1 -ArgumentList 'C:\Users', $true
+    PS> $job = Start-Job -FilePath Z:\Find-FileAccess.ps1 -ArgumentList 'C:\Users', $true
+    PS> $job | Receive-Job
 #>
 [CmdletBinding()]
 Param (
-    [Parameter()]
+    [Parameter(Position = 0)]
     [ValidateNotNullOrEmpty()]
     [String]$SearchPath = $PWD.Path,
 
-    [Parameter()]
+    [Parameter(Position = 1)]
     [Bool]$JsonOutput = $false
 )
 begin {
