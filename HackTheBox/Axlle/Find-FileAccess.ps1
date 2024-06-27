@@ -48,7 +48,7 @@ Param (
     [Bool]$JsonOutput = $false
 )
 begin {
-    if (-not ((Get-Item $SearchPath) -is [System.IO.DirectoryInfo])) { 
+    if (-not ([System.IO.Directory]::Exists($SearchPath))) { 
         throw "Please proivde a valid directory"
     }
     $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
