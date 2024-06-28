@@ -33,7 +33,8 @@
     PS> New-SmbMapping -LocalPath Z: -RemotePath \\kali-ip-address\myshare -UserName smb -Password smb
 
     PS> $job = Start-Job -FilePath Z:\Find-FileAccess.ps1 -ArgumentList 'C:\Users', $false, $true
-    PS> $job | Receive-Job
+    PS> $results = $job | Receive-Job
+    PS> $results
 #>
 [CmdletBinding()]
 Param (
@@ -60,9 +61,8 @@ begin {
     }
     $whoamiGroups = whoami /groups /fo csv | ConvertFrom-Csv | Select-Object -Expand 'Group Name'
     $currentUserGroupNames += $whoamiGroups | Where-Object {$_ -notin $currentUserGroupNames}
-    $fileAccessRightsEnum = [System.Enum]::GetValues([System.Security.AccessControl.FileSystemRights])
+    [String[]]$fileAccessRightsEnum = [System.Enum]::GetValues([System.Security.AccessControl.FileSystemRights])
     $interestingAccess = $fileAccessRightsEnum | Where-Object {$_ -notlike 'Read*' }
-    $interestingPermissions = @()
 }
 process {
     $gciParameters = @{
@@ -71,40 +71,41 @@ process {
         ErrorAction = 'SilentlyContinue'
     }
     if ($HiddenItems) { $gciParameters.Add('Hidden', $true) }
-    $files = Get-ChildItem @gciParameters
-    $acls =  $files | ForEach-Object {
+    $acls = Get-ChildItem @gciParameters | ForEach-Object {
         try {
             Get-Acl $_.FullName
         }
         catch {
-            # Silently ignore errors
+            # Silence error output
         }
     }
-    $interestingAcls = $acls | Where-Object {$_.Access.FileSystemRights -in $interestingAccess}
-}
-end {
-    if ($interestingAcls) {
-        $interestingAcls | ForEach-Object {
-            $currentAcl = $_
-            $identities = $currentAcl.Access.IdentityReference | ForEach-Object {$_.ToString()}
-            $identities | ForEach-Object {
-                if ($_ -in @($currentUserName, $currentUserGroupNames)) {
-                    $interestingPermissions += $currentAcl | Select-Object @{
-                        Name = 'Path'; Expression = {$_.Path -split '\:\:' | Select-Object -Index 1}
-                    },
-                    @{
-                        Name = 'Permissions'; Expression = {$_.AccessToString}
-                    } 
+    $interestingAcls = $acls | ForEach-Object {
+        $currentAcl = $_
+        $identities = $currentAcl.Access.IdentityReference
+        $identities | ForEach-Object {
+            $currentIdentity = $_
+            $identityString = $currentIdentity.ToString()
+            if ($identityString -in $currentUserName -or $identityString -in $currentUserGroupNames) {
+                $aclIdentityIndex = $currentAcl.Access.IdentityReference.IndexOf($currentIdentity)
+                $identityAclAccess = $currentAcl.Access[$aclIdentityIndex]
+                $fileSystemRights = $identityAclAccess.FileSystemRights.ToString() -split ',' -replace ' '
+                if ($fileSystemRights -in $interestingAccess) {
+                    [PSCustomObject]@{
+                        'Path' = $currentAcl.Path -split '\:\:' | Select-Object -Index 1
+                        'Permissions' = $currentAcl.Access[$aclIdentityIndex].IdentityReference.ToString() + ' ' + $currentAcl.Access[$aclIdentityIndex].FileSystemRights.ToString()
+                    }
                 }
             }
         }
-        if ($interestingPermissions) {
-            if ($jsonOutput) {
-                $interestingPermissions | ConvertTo-Json -Depth 100
-            }
-            else {
-                $interestingPermissions | Format-Table -AutoSize -Wrap
-            }
+    }
+}
+end {
+    if ($interestingAcls) {
+        if ($jsonOutput) {
+            $interestingAcls | ConvertTo-Json -Depth 100
+        }
+        else {
+            $interestingAcls | Format-Table -AutoSize -Wrap
         }
     }
     else {
