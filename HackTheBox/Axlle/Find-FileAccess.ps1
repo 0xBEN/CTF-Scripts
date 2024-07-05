@@ -5,8 +5,17 @@
     .PARAMETER SearchPath
     The directory to recursively get ACLs for files and folders.
 
+    .PARAMETER ItemType
+    Specify preference for directories or files. Leave blank if both.
+
+    .PARAMETER HiddenItems
+    Specify if searching for file system items with the hidden attribute.
+
     .PARAMETER JsonOutput
     Specifies if the PowerShell objects should be converted to JSON output.
+
+    .PARAMETER Depth
+    Specify depth to recursively get items.
 
     .INPUTS
     None. 
@@ -18,13 +27,13 @@
     PS> .\Find-FileAccess.ps1
 
     .EXAMPLE
-    PS> .\Find-FileAcces.ps1 -SearchPath 'C:\Users'
+    PS> .\Find-FileAcces.ps1 -SearchPath 'C:\Users' -ItemType File
 
     .EXAMPLE
     PS> .\Find-FileAccess.ps1 -SearchPath 'C:\inetpub' -JsonOutput:$true
 
     .EXAMPLE
-    PS> .\Find-FileAccess.ps1 -SearchPath 'C:\Windows\Temp' -Hidden:$true 
+    PS> .\Find-FileAccess.ps1 -SearchPath 'C:\Windows\Temp' -Hidden:$true -Depth 1
 
     .EXAMPLE
     ...
@@ -32,7 +41,7 @@
 
     PS> New-SmbMapping -LocalPath Z: -RemotePath \\kali-ip-address\myshare -UserName smb -Password smb
 
-    PS> $job = Start-Job -FilePath Z:\Find-FileAccess.ps1 -ArgumentList 'C:\Users', $false, $true
+    PS> $job = Start-Job -FilePath Z:\Find-FileAccess.ps1 -ArgumentList 'C:\Users', 'File', $false, $true, 2
     PS> $results = $job | Receive-Job
     PS> $results
 #>
@@ -43,10 +52,17 @@ Param (
     [String]$SearchPath = $PWD.Path,
 
     [Parameter(Position = 1)]
-    [Bool]$HiddenItems = $false,
+    [ValidateSet('Directory', 'File')]
+    [String]$ItemType,
 
     [Parameter(Position = 2)]
-    [Bool]$JsonOutput = $false
+    [Bool]$HiddenItems = $false,
+
+    [Parameter(Position = 3)]
+    [Bool]$JsonOutput = $false,
+
+    [Parameter(Position = 4)]
+    [Byte]$Depth
 )
 begin {
     if (-not ([System.IO.Directory]::Exists($SearchPath))) { 
@@ -62,7 +78,7 @@ begin {
     $whoamiGroups = whoami /groups /fo csv | ConvertFrom-Csv | Select-Object -Expand 'Group Name'
     $currentUserGroupNames += $whoamiGroups | Where-Object {$_ -notin $currentUserGroupNames}
     [String[]]$fileAccessRightsEnum = [System.Enum]::GetValues([System.Security.AccessControl.FileSystemRights])
-    $interestingAccess = $fileAccessRightsEnum | Where-Object {$_ -notlike 'Read*' }
+    $interestingAccess = $fileAccessRightsEnum | Where-Object {$_ -notlike 'Read*' -and $_ -notlike 'Synchronize' }
 }
 process {
     $gciParameters = @{
@@ -70,7 +86,14 @@ process {
         Recurse = $true
         ErrorAction = 'SilentlyContinue'
     }
+    
     if ($HiddenItems) { $gciParameters.Add('Hidden', $true) }
+    if ($ItemType) {
+        if ($ItemType -eq 'Directory') { $gciParameters.Add('Directory', $true) }
+        else { $gciParameters.Add('File', $true) }
+    }
+    if ($Depth) { $gciParameters.Add('Depth', $Depth) }
+    
     $acls = Get-ChildItem @gciParameters | ForEach-Object {
         try {
             Get-Acl $_.FullName
@@ -89,7 +112,7 @@ process {
                 $aclIdentityIndex = $currentAcl.Access.IdentityReference.IndexOf($currentIdentity)
                 $identityAclAccess = $currentAcl.Access[$aclIdentityIndex]
                 $fileSystemRights = $identityAclAccess.FileSystemRights.ToString() -split ',' -replace ' '
-                if ($fileSystemRights -in $interestingAccess) {
+                if ($fileSystemRights | Where-Object { $_ -in $interestingAccess }) {
                     [PSCustomObject]@{
                         'Path' = $currentAcl.Path -split '\:\:' | Select-Object -Index 1
                         'Permissions' = $currentAcl.Access[$aclIdentityIndex].IdentityReference.ToString() + ' ' + $currentAcl.Access[$aclIdentityIndex].FileSystemRights.ToString()
