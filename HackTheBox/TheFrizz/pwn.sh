@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# CVE-2023-45878
 
 if [[ -z "${@:1}" ]] ; then 
 
