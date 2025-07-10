@@ -57,6 +57,15 @@ function Find-FileAccess {
         [Parameter(Position = 1)]
         [ValidateSet('Directory', 'File')]
         [String]$ItemType,
+
+        [Parameter(Position = 2)]
+        [ValidateSet(
+        "ReadOnly", "Hidden", "System", "Directory", "Archive", 
+        "Device", "Normal", "Temporary", "SparseFile", "ReparsePoint", 
+        "Compressed", "Offline", "NotContentIndexed", "Encrypted", 
+        "IntegrityStream", "NoScrubData"
+        )]
+        [String[]]$Attributes,
         
         [Parameter(Position = 3)]
         [Bool]$JsonOutput = $false,
@@ -64,24 +73,6 @@ function Find-FileAccess {
         [Parameter(Position = 4)]
         [Byte]$Depth
     )
-    DynamicParam {
-        # Year parameter
-        $attributeParamTitle = 'Attributes'
-        $attributeParamAttrib = New-Object System.Management.Automation.ParameterAttribute
-        $attributeParamAttrib.Mandatory = $false
-        $attributeParamAttrib.Position = 2
-        $attributeParamValidationSet = [System.IO.FileAttributes].GetEnumNames()
-        $attributeParamCollection = New-Object -Type System.Collections.ObjectModel.Collection[System.Attribute]
-        $attributeParamCollection.Add($attributeParamAttrib)        
-        $attributeParamCollection.Add($attributeParamValidationSet)
-        $attributeParameter = New-Object -Type System.Management.Automation.RuntimeDefinedParameter($attributeParamTitle, [Int32[]], $attributeParamCollection)
-    
-        # Add parameters to parameter set
-        $allDynamicParameters = New-Object -Type System.Management.Automation.RuntimeDefinedParameterDictionary
-        $allDynamicParameters.Add($attributeParamTitle, $attributeParameter)
-    
-        return $allDynamicParameters
-    }
     begin {
         if (-not ([System.IO.Directory]::Exists($SearchPath))) { 
             throw "Please proivde a valid directory"
