@@ -10,8 +10,8 @@ function Find-FileAccess {
         .PARAMETER ItemType
         Specify preference for directories or files. Leave blank if both.
     
-        .PARAMETER HiddenItems
-        Specify if searching for file system items with the hidden attribute.
+        .PARAMETER Attributes
+        Specify if searching for file system items with specific attributes.
     
         .PARAMETER JsonOutput
         Specifies if the PowerShell objects should be converted to JSON output.
@@ -35,7 +35,7 @@ function Find-FileAccess {
         PS> .\Find-FileAccess.ps1 -SearchPath 'C:\inetpub' -JsonOutput:$true
     
         .EXAMPLE
-        PS> .\Find-FileAccess.ps1 -SearchPath 'C:\Windows\Temp' -Hidden:$true -Depth 1
+        PS> .\Find-FileAccess.ps1 -SearchPath 'C:\Windows\Temp' -Attributes Archive,Hidden -Depth 1
     
         .EXAMPLE
         ...
@@ -57,16 +57,31 @@ function Find-FileAccess {
         [Parameter(Position = 1)]
         [ValidateSet('Directory', 'File')]
         [String]$ItemType,
-    
-        [Parameter(Position = 2)]
-        [System.IO.FileAttributes[]]$Attributes,
-    
+        
         [Parameter(Position = 3)]
         [Bool]$JsonOutput = $false,
     
         [Parameter(Position = 4)]
         [Byte]$Depth
     )
+    DynamicParam {
+        # Year parameter
+        $attributeParamTitle = 'Attributes'
+        $attributeParamAttrib = New-Object System.Management.Automation.ParameterAttribute
+        $attributeParamAttrib.Mandatory = $false
+        $attributeParamAttrib.Position = 2
+        $attributeParamValidationSet = [System.IO.FileAttributes].GetEnumNames()
+        $attributeParamCollection = New-Object -Type System.Collections.ObjectModel.Collection[System.Attribute]
+        $attributeParamCollection.Add($attributeParamAttrib)        
+        $attributeParamCollection.Add($attributeParamValidationSet)
+        $attributeParameter = New-Object -Type System.Management.Automation.RuntimeDefinedParameter($attributeParamTitle, [Int32[]], $attributeParamCollection)
+    
+        # Add parameters to parameter set
+        $allDynamicParameters = New-Object -Type System.Management.Automation.RuntimeDefinedParameterDictionary
+        $allDynamicParameters.Add($attributeParamTitle, $attributeParameter)
+    
+        return $allDynamicParameters
+    }
     begin {
         if (-not ([System.IO.Directory]::Exists($SearchPath))) { 
             throw "Please proivde a valid directory"
